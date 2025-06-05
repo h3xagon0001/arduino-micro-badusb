@@ -7,7 +7,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 # scan for listening port 6969 on network
 #$ScanOutput = nmap -p 6969 -T5 192.168.1.0/24 --open
 $ScanOutput = "Starting Nmap 7.97 ( https://nmap.org ) at 2025-06-05 22:26 +0800
-Nmap scan report for 192.168.1.53
+Nmap scan report for 192.168.1.4
 Host is up (0.00013s latency).
 
 PORT     STATE SERVICE
@@ -17,7 +17,10 @@ Nmap done: 256 IP addresses (11 hosts up) scanned in 38.49 seconds"
 
 # get ip of listener
 #$ScanOutput | Select-String -Pattern "(192\.168\.1\.)\w+"
-$ListenerIP = "some text here and there" | Select-String -Pattern "(and there)" -AllMatches
+$ScanOutput -match "192\.168\.1\.\w+"
+$ListenerIP = $matches[0]
+Write-Output $matches[0]
+Write-Output $ListenerIP
 
 
 
