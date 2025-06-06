@@ -1,1 +1,0 @@
-cd C:\Users\Oxford\Documents\GitHub\arduino-micro-badusb; .\main.ps1; powershell
