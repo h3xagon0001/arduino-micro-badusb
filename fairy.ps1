@@ -10,8 +10,8 @@ Write-Output "Scan Finished"
 
 # get ip of listener
 Write-Output "Getting IP"
-$string = $ScanOutput -match "192\.168\..+"
-$ListenerIP = $string.Substring(21)
+$string = $ScanOutput | Select-String -Pattern "192\.168\..+"
+$ListenerIP = $string.Matches.Value
 Write-Output "IP Extracted"
 
 # connect to listener
