@@ -21,9 +21,6 @@ _ENV = stdnse.module("tls", stdnse.seeall)
 
 local pack = string.pack
 local unpack = string.unpack
-local tostring = tostring
-local concat = table.concat
-local insert = table.insert
 
 -- Most of the values in the tables below are from:
 -- http://www.iana.org/assignments/tls-parameters/
@@ -47,9 +44,7 @@ TLS_CONTENTTYPE_REGISTRY = {
   ["alert"]               = 21,
   ["handshake"]           = 22,
   ["application_data"]    = 23,
-  ["heartbeat"]           = 24,
-  ["tls12_cid"]           = 25,
-  ["ACK"]                 = 26,
+  ["heartbeat"]           = 24
 }
 
 local TLS_CONTENTTYPES = tableaux.invert(TLS_CONTENTTYPE_REGISTRY)
@@ -84,7 +79,6 @@ TLS_ALERT_REGISTRY = {
   ["access_denied"]                       = 49,
   ["decode_error"]                        = 50,
   ["decrypt_error"]                       = 51,
-  ["too_many_cids_requested"]             = 52,
   ["export_restriction"]                  = 60,
   ["protocol_version"]                    = 70,
   ["insufficient_security"]               = 71,
@@ -115,22 +109,17 @@ TLS_HANDSHAKETYPE_REGISTRY = {
   ["end_of_early_data"]           = 5,
   ["hello_retry_request"]         = 6,
   ["encrypted_extensions"]        = 8,
-  ["request_connection_id"]       = 9,
-  ["new_connection_id"]           = 10,
   ["certificate"]                 = 11,
   ["server_key_exchange"]         = 12,
   ["certificate_request"]         = 13,
   ["server_hello_done"]           = 14,
   ["certificate_verify"]          = 15,
   ["client_key_exchange"]         = 16,
-  ["client_certificate_request"]  = 17,
   ["finished"]                    = 20,
   ["certificate_url"]             = 21,
   ["certificate_status"]          = 22,
   ["supplemental_data"]           = 23,
   ["key_update"]                  = 24,
-  ["compressed_certificate"]      = 25,
-  ["ekt_key"]                     = 26,
   ["next_protocol"]               = 67,
   ["message_hash"]                = 254,
 }
@@ -146,7 +135,6 @@ COMPRESSORS = {
 }
 
 ---
--- TLS Supported Groups
 -- RFC 4492 section 5.1.1 "Supported Elliptic Curves Extension".
 ELLIPTIC_CURVES = {
   sect163k1 = 1, --deprecated
@@ -182,7 +170,7 @@ ELLIPTIC_CURVES = {
   brainpoolP256r1tls13 = 31, --RFC8734
   brainpoolP384r1tls13 = 32,
   brainpoolP512r1tls13 = 33,
-  GC256A = 34, -- RFC9189
+  GC256A = 34, -- draft-smyshlyaev-tls12-gost-suites
   GC256B = 35,
   GC256C = 36,
   GC256D = 37,
@@ -195,12 +183,6 @@ ELLIPTIC_CURVES = {
   ffdhe4096 = 0x0102, --RFC7919
   ffdhe6144 = 0x0103, --RFC7919
   ffdhe8192 = 0x0104, --RFC7919
-  MLKEM512 = 512, --draft-connolly-tls-mlkem-key-agreement-03
-  MLKEM768 = 513, --draft-connolly-tls-mlkem-key-agreement-03
-  MLKEM1024 = 514, --draft-connolly-tls-mlkem-key-agreement-03
-  SecP256r1MLKEM768 = 4587, --draft-kwiatkowski-tls-ecdhe-mlkem-03 secp256r1 ECDH with ML-KEM-768
-  X25519MLKEM768 = 4588, --draft-kwiatkowski-tls-ecdhe-mlkem-03 X25519 ECDH with ML-KEM-768
-  SecP384r1MLKEM1024 = 4589, --draft-kwiatkowski-tls-ecdhe-mlkem-03 secp384r1 ECDH with ML-KEM-1024
   arbitrary_explicit_prime_curves = 0xFF01,
   arbitrary_explicit_char2_curves = 0xFF02,
 }
@@ -241,8 +223,6 @@ SignatureAlgorithms = {
   ecdsa = 3,
   ed25519 = 7,
   ed448 = 8,
-  gostr34102012_256 = 64,
-  gostr34102012_512 = 65,
 }
 
 ---
@@ -256,21 +236,6 @@ SignatureSchemes = {
   ecdsa_secp256r1_sha256 = 0x0403,
   ecdsa_secp384r1_sha384 = 0x0503,
   ecdsa_secp521r1_sha512 = 0x0603,
-  -- draft-wang-tls-raw-public-key-with-ibc
-  eccsi_sha256 = 0x0704,
-  iso_ibs1 = 0x0705,
-  iso_ibs2 = 0x0706,
-  iso_chinese_ibs = 0x0707,
-  -- RFC8998
-  sm2sig_sm3 = 0x0708,
-  -- draft-smyshlyaev-tls13-gost-suites
-  gostr34102012_256a = 0x0709,
-  gostr34102012_256b = 0x070A,
-  gostr34102012_256c = 0x070B,
-  gostr34102012_256d = 0x070C,
-  gostr34102012_512a = 0x070D,
-  gostr34102012_512b = 0x070E,
-  gostr34102012_512c = 0x070F,
   -- RSASSA-PSS algorithms with public key OID rsaEncryption
   rsa_pss_rsae_sha256 = 0x0804,
   rsa_pss_rsae_sha384 = 0x0805,
@@ -282,10 +247,6 @@ SignatureSchemes = {
   rsa_pss_pss_sha256 = 0x0809,
   rsa_pss_pss_sha384 = 0x080a,
   rsa_pss_pss_sha512 = 0x080b,
-  -- ECC Brainpool curves
-  ecdsa_brainpoolP256r1tls13_sha256 = 0x081a,
-  ecdsa_brainpoolP384r1tls13_sha384 = 0x081b,
-  ecdsa_brainpoolP512r1tls13_sha512 = 0x081c,
   -- Legacy algorithms
   rsa_pkcs1_sha1 = 0x0201,
   ecdsa_sha1     = 0x0203,
@@ -309,7 +270,7 @@ EXTENSIONS = {
   ["client_authz"] = 7,
   ["server_authz"] = 8,
   ["cert_type"] = 9,
-  ["elliptic_curves"] = 10, -- TLS 1.3 calls this supported_groups
+  ["elliptic_curves"] = 10,
   ["ec_point_formats"] = 11,
   ["srp"] = 12,
   ["signature_algorithms"] = 13,
@@ -323,25 +284,12 @@ EXTENSIONS = {
   ["signed_certificate_timestamp"] = 18,
   ["client_certificate_type"] = 19,
   ["server_certificate_type"] = 20,
-  ["padding"] = 21, -- rfc7685
+  ["padding"] = 21, -- Temporary, expires 2015-03-12
   ["encrypt_then_mac"] = 22, -- rfc7366
   ["extended_master_secret"] = 23, -- rfc7627
   ["token_binding"] = 24, -- Temporary, expires 2018-02-04
   ["cached_info"] = 25, -- rfc7924
-  ["tls_lts"] = 26, -- draft-gutmann-tls-lts
-  ["compress_certificate"] = 27, -- rfc8879
-  ["record_size_limit"] = 28, -- rfc8449
-  ["pwd_protect"] = 29, -- rfc8492
-  ["pwd_clear"] = 30, -- rfc8492
-  ["password_salt"] = 31, -- rfc8492
-  ["ticket_pinning"] = 32,
-  ["tls_cert_with_extern_psk"] = 33,
-  ["delegated_credentials"] = 34,
-  ["TLMSP"] = 35,
-  ["TLMSP_proxying"] = 36,
-  ["TLMSP_delegate"] = 37,
-  ["supported_ekt_ciphers"] = 38,
-  ["SessionTicket TLS"] = 39,
+  ["SessionTicket TLS"] = 35,
   -- TLSv1.3
   ["pre_shared_key"] = 41,
   ["early_data"] = 42,
@@ -353,14 +301,6 @@ EXTENSIONS = {
   ["post_handshake_auth"] = 49,
   ["signature_algorithms_cert"] = 50,
   ["key_share"] = 51,
-  ["transparency_info"] = 52,
-  ["connection_id-deprecated"] = 53,
-  ["connection_id"] = 54,
-  ["external_id_hash"] = 55,
-  ["external_session_id"] = 56,
-  ["quic_transport_parameters"] = 57,
-  ["ticket_request"] = 58,
-  ["dnssec_chain"] = 59,
   --
   ["next_protocol_negotiation"] = 13172,
   ["renegotiation_info"] = 65281,
@@ -385,14 +325,14 @@ EXTENSION_HELPERS = {
     for _, name in ipairs(elliptic_curves) do
       list[#list+1] = pack(">I2", ELLIPTIC_CURVES[name])
     end
-    return pack(">s2", concat(list))
+    return pack(">s2", table.concat(list))
   end,
   ["ec_point_formats"] = function (ec_point_formats)
     local list = {}
     for _, format in ipairs(ec_point_formats) do
       list[#list+1] = pack(">B", EC_POINT_FORMATS[format])
     end
-    return pack(">s1", concat(list))
+    return pack(">s1", table.concat(list))
   end,
   ["signature_algorithms"] = function(signature_algorithms)
     local list = {}
@@ -402,21 +342,21 @@ EXTENSION_HELPERS = {
         SignatureAlgorithms[pair[2]] or pair[2]
         )
     end
-    return pack(">s2", concat(list))
+    return pack(">s2", table.concat(list))
   end,
   ["signature_algorithms_13"] = function (signature_schemes)
     local list = {}
     for _, name in ipairs(signature_schemes) do
       list[#list+1] = pack(">I2", SignatureSchemes[name])
     end
-    return pack(">s2", concat(list))
+    return pack(">s2", table.concat(list))
   end,
   ["application_layer_protocol_negotiation"] = function(protocols)
     local list = {}
     for _, proto in ipairs(protocols) do
       list[#list+1] = pack(">s1", proto)
     end
-    return pack(">s2", concat(list))
+    return pack(">s2", table.concat(list))
   end,
   ["next_protocol_negotiation"] = tostring,
   ["supported_versions"] = function(versions)
@@ -424,7 +364,7 @@ EXTENSION_HELPERS = {
     for _, name in ipairs(versions) do
       list[#list+1] = pack(">I2", PROTOCOLS[name])
     end
-    return pack(">s1", concat(list))
+    return pack(">s1", table.concat(list))
   end,
 }
 
@@ -797,15 +737,8 @@ CIPHERS = {
 ["TLS_ECCPWD_WITH_AES_256_GCM_SHA384"]             =  0xC0B1, -- RFC8492
 ["TLS_ECCPWD_WITH_AES_128_CCM_SHA256"]             =  0xC0B2, -- RFC8492
 ["TLS_ECCPWD_WITH_AES_256_CCM_SHA384"]             =  0xC0B3, -- RFC8492
-["TLS_AKE_WITH_NULL_SHA256"]             =  0xC0B4, -- RFC9150
-["TLS_AKE_WITH_NULL_SHA384"]             =  0xC0B5, -- RFC9150
-["TLS_GOSTR341112_256_WITH_KUZNYECHIK_CTR_OMAC"] =  0xC100, -- RFC9189
-["TLS_GOSTR341112_256_WITH_MAGMA_CTR_OMAC"]      =  0xC101, -- RFC9189
-["TLS_GOSTR341112_256_WITH_28147_CNT_IMIT"]      =  0xC102, -- RFC9189
-["TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_L"]    =  0xC103, -- draft-smyshlyaev-tls13-gost-suites
-["TLS_GOSTR341112_256_WITH_MAGMA_MGM_L"]         =  0xC104, -- draft-smyshlyaev-tls13-gost-suites
-["TLS_GOSTR341112_256_WITH_KUZNYECHIK_MGM_S"]    =  0xC105, -- draft-smyshlyaev-tls13-gost-suites
-["TLS_GOSTR341112_256_WITH_MAGMA_MGM_S"]         =  0xC106, -- draft-smyshlyaev-tls13-gost-suites
+["TLS_AKE_WITH_NULL_SHA256"]             =  0xC0B4, -- draft-camwinget-tls-ts13-macciphersuites
+["TLS_AKE_WITH_NULL_SHA384"]             =  0xC0B5, -- draft-camwinget-tls-ts13-macciphersuites
 ["TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256-draft"]    =  0xCC13, -- RFC7905 superseded
 ["TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256-draft"]  =  0xCC14, -- RFC7905 superseded
 ["TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256-draft"]      =  0xCC15, -- RFC7905 superseded
@@ -834,8 +767,6 @@ TLS_AKE_WITH_AES_256_GCM_SHA384       = 0x1302,
 TLS_AKE_WITH_CHACHA20_POLY1305_SHA256 = 0x1303,
 TLS_AKE_WITH_AES_128_CCM_SHA256       = 0x1304,
 TLS_AKE_WITH_AES_128_CCM_8_SHA256     = 0x1305,
-TLS_AKE_WITH_AEGIS_256_SHA512 = 0x1306, -- draft-irtf-cfrg-aegis-aead-08
-TLS_AKE_WITH_AEGIS_128L_SHA256 = 0x1307, -- draft-irtf-cfrg-aegis-aead-08
 TLS_AKE_WITH_SM4_GCM_SM3 = 0x00C6, -- RFC 8998
 TLS_AKE_WITH_SM4_CCM_SM3 = 0x00C7, -- RFC 8998
 }
@@ -859,7 +790,7 @@ local DEFAULT_CIPHERS = {
   table.unpack(DEFAULT_TLS13_CIPHERS)
 }
 for _, c in ipairs(DEFAULT_TLS12_CIPHERS) do
-  insert(DEFAULT_CIPHERS, c)
+  table.insert(DEFAULT_CIPHERS, c)
 end
 
 local function find_key(t, value)
@@ -1302,8 +1233,6 @@ local algorithms = {
   ARIA = {b=128},
   AES = {b=128},
   SM4 = {s=128, b=128},
-  AEGIS_256 = {s=256, b=128},
-  AEGIS_128L = {s=128, b=256},
 }
 --- Get info about a cipher suite
 --
@@ -1327,7 +1256,7 @@ function cipher_info (c)
   while tokens[i] and tokens[i] ~= "WITH" do
     i = i + 1
   end
-  local kex = concat(tokens, "_", 2, i-1)
+  local kex = table.concat(tokens, "_", 2, i-1)
   info = KEX_ALGORITHMS[kex]
   if info then
     info = tableaux.tcopy(info)
@@ -1347,9 +1276,6 @@ function cipher_info (c)
   info.cipher = t
   if t == "3DES" then
     i = i + 1 -- 3DES_EDE
-  elseif t == "AEGIS" then
-    i = i + 1
-    t = ("%s_%s"):format(t, tokens[i])
   end
 
   -- key size
@@ -1484,7 +1410,7 @@ handshake_parse = {
           local cert
           cert, j = unpack(">s3", buffer, j)
           -- parse these with sslcert.parse_ssl_certificate
-          insert(b["certificates"], cert)
+          table.insert(b["certificates"], cert)
         end
 
         return b, j
@@ -1683,7 +1609,7 @@ end
 -- @param b The record body
 -- @return The SSL/TLS record as a string
 function record_write(type, protocol, b)
-  return concat({
+  return table.concat({
     -- Set the header as a handshake.
     pack("B", TLS_CONTENTTYPE_REGISTRY[type]),
     -- Set the protocol.
@@ -1706,11 +1632,13 @@ do
     {"sha256","rsa"},
     {"sha256","dsa"},
     {"sha256","ecdsa"},
+    {"sha256","ed25519"},
+    {"sha256","ed448"},
     {"sha512","rsa"},
     {"sha512","dsa"},
     {"sha512","ecdsa"},
-    {"intrinsic","ed25519"},
-    {"intrinsic","ed448"},
+    {"sha512","ed25519"},
+    {"sha512","ed448"},
   }
   DEFAULT_SIGALGS = EXTENSION_HELPERS["signature_algorithms"](sigalgs)
 end
@@ -1757,7 +1685,7 @@ function client_hello(t)
   b = {}
   -- Set the protocol.
   local protocol = t["protocol"] or HIGHEST_PROTOCOL
-  insert(b, pack(">I2 I4",
+  table.insert(b, pack(">I2 I4",
     legacy_version(PROTOCOLS[protocol]),
     -- Set the random data.
     os.time()
@@ -1765,11 +1693,11 @@ function client_hello(t)
   local record_proto = t.record_protocol
 
   -- Set the random data.
-  insert(b, rand.random_string(28))
+  table.insert(b, rand.random_string(28))
 
   -- Set the session ID.
   local sid = t["session_id"] or ""
-  insert(b, pack(">s1", sid))
+  table.insert(b, pack(">s1", sid))
 
   local eccpwd = false
   local shangmi = false
@@ -1792,12 +1720,12 @@ function client_hello(t)
       cipher = CIPHERS[cipher] or SCSVS[cipher]
     end
     if type(cipher) == "number" and cipher >= 0 and cipher <= 0xffff then
-      insert(ciphers, pack(">I2", cipher))
+      table.insert(ciphers, pack(">I2", cipher))
     else
       stdnse.debug1("Unknown cipher in client_hello: %s", cipher)
     end
   end
-  insert(b, pack(">s2", concat(ciphers)))
+  table.insert(b, pack(">s2", table.concat(ciphers)))
 
   -- Compression methods.
   compressors = {}
@@ -1805,13 +1733,13 @@ function client_hello(t)
     -- Add specified compressors.
     for _, compressor in pairs(t["compressors"]) do
       if compressor ~= "NULL" then
-        insert(compressors, pack("B", COMPRESSORS[compressor]))
+        table.insert(compressors, pack("B", COMPRESSORS[compressor]))
       end
     end
   end
   -- Always include NULL as last choice
-  insert(compressors, pack("B", COMPRESSORS["NULL"]))
-  insert(b, pack("s1", concat(compressors)))
+  table.insert(compressors, pack("B", COMPRESSORS["NULL"]))
+  table.insert(b, pack("s1", table.concat(compressors)))
 
   -- TLS extensions
   local proto_ver = PROTOCOLS[protocol]
@@ -1828,7 +1756,7 @@ function client_hello(t)
     if t.extensions then
       for extension, data in pairs(t["extensions"]) do
         if type(extension) == "number" then
-          insert(extensions, pack(">I2", extension))
+          table.insert(extensions, pack(">I2", extension))
         else
           if extension == "signature_algorithms" or extension == "signature_algorithms_13" then
             need_sigalg = false
@@ -1852,41 +1780,41 @@ function client_hello(t)
               end
             end
           end
-          insert(extensions, pack(">I2", EXTENSIONS[extension]))
+          table.insert(extensions, pack(">I2", EXTENSIONS[extension]))
         end
-        insert(extensions, pack(">s2", data))
+        table.insert(extensions, pack(">s2", data))
       end
     end
     if need_supported_versions then
-      insert(extensions, pack(">I2", EXTENSIONS["supported_versions"]))
+      table.insert(extensions, pack(">I2", EXTENSIONS["supported_versions"]))
       -- We'd prefer TLS 1.2 or 1.1, since we've tested our scripts on those.
-      insert(extensions, pack(">s2", EXTENSION_HELPERS["supported_versions"]({"TLSv1.2", "TLSv1.1", "TLSv1.3", "SSLv3"})))
+      table.insert(extensions, pack(">s2", EXTENSION_HELPERS["supported_versions"]({"TLSv1.2", "TLSv1.1", "TLSv1.3", "SSLv3"})))
     end
     if need_sigalg then
-      insert(extensions, pack(">I2", EXTENSIONS["signature_algorithms"]))
+      table.insert(extensions, pack(">I2", EXTENSIONS["signature_algorithms"]))
       local data = proto_ver >= PROTOCOLS["TLSv1.3"] and DEFAULT_SIGSCHEMES or DEFAULT_SIGALGS
       if shangmi then
         data = pack(">s2", data:sub(3) .. pack(">I2", SignatureSchemes.sm2sig_sm3))
       end
-      insert(extensions, pack(">s2", data))
+      table.insert(extensions, pack(">s2", data))
     end
     if need_key_share then
       -- RFC 8446: Clients MAY send an empty client_shares vector in order to request
       -- group selection from the server, at the cost of an additional round trip
-      insert(extensions, pack(">I2", EXTENSIONS["key_share"]))
-      insert(extensions, pack(">s2", "\0\0"))
+      table.insert(extensions, pack(">I2", EXTENSIONS["key_share"]))
+      table.insert(extensions, pack(">s2", "\0\0"))
     end
     if need_elliptic_curves then
       local curves = {table.unpack(DEFAULT_ELLIPTIC_CURVES)}
       if shangmi then
         curves[#curves+1] = "curveSM2"
       end
-      insert(extensions, pack(">I2", EXTENSIONS["elliptic_curves"]))
-      insert(extensions, pack(">s2", EXTENSION_HELPERS["elliptic_curves"](curves)))
+      table.insert(extensions, pack(">I2", EXTENSIONS["elliptic_curves"]))
+      table.insert(extensions, pack(">s2", EXTENSION_HELPERS["elliptic_curves"](curves)))
     end
     -- Extensions are optional
     if #extensions ~= 0 then
-      insert(b, pack(">s2", concat(extensions)))
+      table.insert(b, pack(">s2", table.concat(extensions)))
     end
   end
 
@@ -1894,15 +1822,15 @@ function client_hello(t)
   -- Header --
   ------------
 
-  b = concat(b)
+  b = table.concat(b)
 
   h = {}
 
   -- Set type to ClientHello.
-  insert(h, pack("B", TLS_HANDSHAKETYPE_REGISTRY["client_hello"]))
+  table.insert(h, pack("B", TLS_HANDSHAKETYPE_REGISTRY["client_hello"]))
 
   -- Set the length of the body.
-  insert(h, pack(">s3", b))
+  table.insert(h, pack(">s3", b))
 
   -- Record layer version should be SSLv3 (lowest compatible record version)
   -- But some implementations (OpenSSL) will not finish a handshake that could
@@ -1918,7 +1846,7 @@ function client_hello(t)
     -- purposes.
     record_proto = "TLSv1.2"
   end
-  return record_write("handshake", record_proto, concat(h))
+  return record_write("handshake", record_proto, table.concat(h))
 end
 
 local function read_atleast(s, n)
@@ -1927,12 +1855,12 @@ local function read_atleast(s, n)
   while count < n do
     local status, data = s:receive_bytes(n - count)
     if not status then
-      return status, data, concat(buf)
+      return status, data, table.concat(buf)
     end
     buf[#buf+1] = data
     count = count + #data
   end
-  return true, concat(buf)
+  return true, table.concat(buf)
 end
 
 --- Get an entire record into a buffer

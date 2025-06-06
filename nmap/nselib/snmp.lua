@@ -2,8 +2,6 @@
 -- SNMP library.
 --
 -- @args snmp.version The SNMP protocol version. Use <code>"v1"</code> or <code>0</code> for SNMPv1 (default) and <code>"v2c"</code> or <code>1</code> for SNMPv2c.
--- @args snmp.timeout The timeout for SNMP queries. Default: varies by target responsiveness, up to 5s.
--- @args snmp.retries The number of times a query should be reattempted. Default: 1
 --
 -- @author Patrik Karlsson <patrik@cqure.net>
 -- @author Gioacchino Mazzurco <gmazzurco89@gmail.com>
@@ -20,13 +18,6 @@ local string = require "string"
 local table = require "table"
 _ENV = stdnse.module("snmp", stdnse.seeall)
 
-
-local arg_timeout = stdnse.parse_timespec(stdnse.get_script_args("snmp.timeout"))
-if arg_timeout then
-  arg_timeout = arg_timeout * 1000
-end
-local default_max_timeout = 5000 --ms
-local retries = stdnse.get_script_args("snmp.retries") or 1
 
 -- SNMP ASN.1 Encoders
 local tagEncoder = {}
@@ -151,7 +142,7 @@ end
 local version_to_num = {v1=0, v2c=1}
 local num_to_version = {[0]="v1", [1]="v2c"}
 
--- Returns the numerical value of a given SNMP protocol version
+--- Returns the numerical value of a given SNMP protocol version
 --
 -- Numerical input is simply passed through, assuming it is valid.
 -- String input is translated to its corresponding numerical value.
@@ -164,7 +155,7 @@ local function getVersion (version, default)
     if num_to_version[version] then
       return version
     end
-    stdnse.debug1("Unrecognized SNMP version; proceeding with SNMP%s", num_to_version[default])
+    stdnse.debug1("Unrecognized SNMP version; proceeding with SNMP" .. num_to_version[default])
   end
   return default
 end
@@ -386,6 +377,29 @@ function oid2str(oid)
   return table.concat(oid, '.')
 end
 
+---
+-- Transforms a table representing an IP to a string.
+-- @param ip IP table.
+-- @return IP string.
+function ip2str(ip)
+  if (type(ip) ~= "table") then return 'invalid ip' end
+  return table.concat(ip, '.')
+end
+
+
+---
+-- Transforms a string into an IP table.
+-- @param ipStr IP as string.
+-- @return Table representing IP.
+function str2ip(ipStr)
+  local ip = {}
+  for n in string.gmatch(ipStr, "%d+") do
+    table.insert(ip, tonumber(n))
+  end
+  ip._snmp = '\x40'
+  return ip
+end
+
 
 ---
 -- Fetches values from a SNMP response.
@@ -470,9 +484,10 @@ Helper = {
       end
     end
 
-    o.options = options or {}
-    o.options.timeout = o.options.timeout or arg_timeout
-    o.options.version = o.options.version or default_version
+    o.options = options or {
+      timeout = 5000,
+      version = default_version
+    }
 
     return o
   end,
@@ -483,7 +498,7 @@ Helper = {
   -- @return status true on success, false on failure
   connect = function( self )
     self.socket = nmap.new_socket()
-    self.socket:set_timeout(self.options.timeout or stdnse.get_timeout(self.host, default_max_timeout))
+    self.socket:set_timeout(self.options.timeout)
     local status, err = self.socket:connect(self.host, self.port)
     if ( not(status) ) then return false, err end
 
@@ -502,19 +517,13 @@ Helper = {
         self.community
       ) )
 
-    local received, data
-    for i=0, retries do
-      local status, err = self.socket:send(payload)
-      if not status then
-        stdnse.debug2("snmp.Helper.request: Send to %s failed: %s", self.host.ip, err)
-        return false, err
-      end
-
-      received, data = self.socket:receive_bytes(1)
-      if received then break end
+    local status, err = self.socket:send(payload)
+    if not status then
+      stdnse.debug2("snmp.Helper.request: Send to %s failed: %s", self.host.ip, err)
+      return false, err
     end
 
-    return received, data
+    return self.socket:receive_bytes(1)
   end,
 
   --- Sends an SNMP Get Next request
@@ -549,7 +558,7 @@ Helper = {
   -- @param options SNMP options table
   -- @see snmp.options
   -- @param oid Object identifiers of object to be set.
-  -- @param setparam To which value object should be set. If given a table,
+  -- @param value To which value object should be set. If given a table,
   --              use the table instead of OID/value pair.
   -- @return status False if error, true otherwise
   -- @return Table with all decoded responses and their OIDs.

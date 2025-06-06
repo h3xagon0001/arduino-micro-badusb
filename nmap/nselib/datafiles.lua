@@ -15,8 +15,6 @@ local nmap = require "nmap"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
--- mostly undocumented library for direct lookups in Nmap datafiles:
-local nmapdb = require "nmapdb"
 _ENV = stdnse.module("datafiles", stdnse.seeall)
 
 
@@ -74,71 +72,59 @@ parse_rpc = function()
   return parse_and_cache("nmap-rpc")
 end
 
-local prohibited = function()
-  error("Invalid function")
-end
-local services_table = {}
-local portlookup_mt = {
-  __index = function(t, port)
-    return nmapdb.getservbyport(port, rawget(t, "proto"))
-  end,
-  __newindex = prohibited,
-}
-for _, proto in ipairs({"tcp", "udp", "sctp"}) do
-  services_table[proto] = setmetatable({proto=proto}, portlookup_mt)
-end
 
 ---
 -- Read and parse <code>nmap-services</code>.
 --
--- On success, return true and a table containing subtables indexed by the
--- keys "tcp", "udp", and "sctp". You can
--- pass a protocol name as an argument to <code>parse_services</code> to get
+-- On success, return true and a table containing two subtables, indexed by the
+-- keys "tcp" and "udp". The <code>tcp</code> subtable maps TCP port numbers to
+-- service names, and the <code>udp</code> subtable is the same for UDP. You can
+-- pass "tcp" or "udp" as an argument to <code>parse_services</code> to get
 -- only one of the results tables.
--- @param protocol Optional: The protocol table to return (e.g. <code>"tcp"</code> or
+-- @param protocol The protocol table to return (<code>"tcp"</code> or
 -- <code>"udp"</code>).
 -- @return Status (true or false).
 -- @return Table (if status is true) or error string (if status is false).
 -- @see parse_file
 parse_services = function(protocol)
-  local t
-  if protocol then
-    t = services_table[protocol]
-    if not t then
-      return false, "Bad protocol for nmap-services"
-    end
-  else
-    t = services_table
+  if protocol and protocol ~= "tcp" and protocol ~= "udp" then
+    return false, "Bad protocol for nmap-services: use tcp or udp"
   end
 
-  return true, t
+  local services_table
+  nmap.registry.datafiles = nmap.registry.datafiles or {}
+  nmap.registry.datafiles.services = nmap.registry.datafiles.services or {}
+  if protocol then
+    if not nmap.registry.datafiles.services[protocol] then
+      local status
+      status, nmap.registry.datafiles.services[protocol] = parse_file("nmap-services", protocol)
+      if not status then
+        return false, "Error parsing nmap-services"
+      end
+    end
+    services_table = nmap.registry.datafiles.services[protocol]
+  else
+    local status
+    status, nmap.registry.datafiles.services = parse_file("nmap-services")
+    if not status then
+      return false, "Error parsing nmap-services"
+    end
+    services_table = nmap.registry.datafiles.services
+  end
+
+  return true, services_table
 end
 
 
-local mac_table = setmetatable({}, {
-  __index = function(t, mac)
-    if #mac < 6 then
-      -- probably binary
-      mac = mac .. ("\0"):rep(6 - #mac)
-    elseif #mac < 12 then
-      -- probably hex
-      mac = mac .. ("0"):rep(12 - #mac)
-    end
-    return nmapdb.mac2corp(mac)
-  end,
-  __newindex = prohibited,
-})
 ---
 -- Read and parse <code>nmap-mac-prefixes</code>.
 --
--- On success, return true and a table mapping MAC prefixes to manufacturer
--- names. The whole MAC can also be used as a key, since the table calls an
--- internal Nmap function to do the lookup.
+-- On success, return true and a table mapping 3 byte MAC prefixes to manufacturer names.
 -- @return Status (true or false).
 -- @return Table (if status is true) or error string (if status is false).
 -- @see parse_file
 parse_mac_prefixes = function()
-  return true, mac_table
+  return parse_and_cache("nmap-mac-prefixes")
 end
 
 

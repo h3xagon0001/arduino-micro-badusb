@@ -61,9 +61,8 @@ end
 
 function action (host, port)
   local conn = libssh2_util.SSHConnection:new()
-  local status, err = conn:connect_pcall(host, port)
-  if not status then
-    return "Failed to connect to ssh server: " .. err
+  if not conn:connect(host, port) then
+    return "Failed to connect to ssh server"
   end
   if username and password and cmd then
     if not conn:password_auth(username, password) then

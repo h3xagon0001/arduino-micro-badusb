@@ -192,7 +192,7 @@ parser = {
   unescape = function(str) return string.gsub( str, '(&(#?)([%d%a]+);)', entitySwap ) end,
 
   --- Parses the xml in sax like manner.
-  -- @param self The parser object.
+  -- @self The parser object.
   -- @param xml The xml body to be parsed.
   -- @param options Options if any specified.
   parseSAX = function(self, xml, options)

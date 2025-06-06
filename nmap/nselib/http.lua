@@ -145,7 +145,6 @@ local stringaux = require "stringaux"
 local table = require "table"
 local tableaux = require "tableaux"
 local url = require "url"
-local ascii_hostname = url.ascii_hostname
 local smbauth = require "smbauth"
 local unicode = require "unicode"
 
@@ -188,9 +187,8 @@ local function get_host_field(host, port, scheme)
   if host_header then return host_header end
   -- If there's no host, we can't invent a name.
   if not host then return nil end
-  local hostname = ascii_hostname(host)
   -- If there's no port, just return hostname.
-  if not port then return hostname end
+  if not port then return stdnse.get_hostname(host) end
   if type(port) == "string" then
     port = tonumber(port)
     assert(port, "Invalid port: not a number or table")
@@ -202,7 +200,7 @@ local function get_host_field(host, port, scheme)
   if scheme then
     -- Caller provided scheme. If it's default, return just the hostname.
     if number == get_default_port(scheme) then
-      return hostname
+      return stdnse.get_hostname(host)
     end
   else
     scheme = url.get_default_scheme(port)
@@ -212,12 +210,12 @@ local function get_host_field(host, port, scheme)
       if (ssl_port and scheme == 'https') or
         (not ssl_port and scheme == 'http') then
         -- If it's SSL and https, or if it's plaintext and http, return just the hostname.
-        return hostname
+        return stdnse.get_hostname(host)
       end
     end
   end
   -- No special cases matched, so include the port number in the host header
-  return hostname .. ":" .. number
+  return stdnse.get_hostname(host) .. ":" .. number
 end
 
 -- Skip *( SP | HT ) starting at offset. See RFC 2616, section 2.2.
@@ -1078,7 +1076,7 @@ local function lookup_cache (method, host, port, path, options)
 
   if type(port) == "table" then port = port.number end
 
-  local key = ascii_hostname(host)..":"..port..":"..path;
+  local key = stdnse.get_hostname(host)..":"..port..":"..path;
   local mutex = nmap.mutex(tostring(lookup_cache)..key);
 
   local state = {
@@ -1617,7 +1615,7 @@ local redirect_ok_rules = {
   -- * ccTLDs are not treated as such. The rule will not stop a redirect
   --   from foo.co.uk to bar.co.uk even though it logically should.
   function (url, host, port)
-    local hostname = ascii_hostname(host)
+    local hostname = stdnse.get_hostname(host)
     if hostname == host.ip then
       return url.host == hostname
     end
@@ -1702,7 +1700,7 @@ function parse_redirect(host, port, path, response)
   local u = url.parse(response.header.location)
   if ( not(u.host) ) then
     -- we're dealing with a relative url
-    u.host = ascii_hostname(host)
+    u.host = stdnse.get_hostname(host)
   end
   -- do port fixup
   u.port = u.port or get_default_port(u.scheme) or port.number
@@ -1710,11 +1708,9 @@ function parse_redirect(host, port, path, response)
     u.path = "/"
   end
   u.path = url.absolute(path, u.path)
-  u.path = url.build({
-      path = u.path,
-      query = u.query,
-      params = u.params,
-    })
+  if ( u.query ) then
+    u.path = ("%s?%s"):format( u.path, u.query )
+  end
   return u
 end
 
@@ -1815,7 +1811,7 @@ function get_url( u, options )
     path = path .. "?" .. parsed.query
   end
 
-  return get( parsed.ascii_host or parsed.host, port, path, options )
+  return get( parsed.host, port, path, options )
 end
 
 ---Fetches a resource with a HEAD request.
@@ -1995,14 +1991,14 @@ function pipeline_go(host, port, all_requests)
     stdnse.debug1("Warning: empty set of requests passed to http.pipeline_go()")
     return responses
   end
-  stdnse.debug1("HTTP pipeline: Total number of requests: %d", #all_requests)
+  stdnse.debug1("HTTP pipeline: Total number of requests: " .. #all_requests)
 
   -- We'll try a first request with keep-alive, just to check if the server
   -- supports it and how many requests we can send into one socket
   local req = all_requests[1]
   req.options.header = force_header(req.options.header, "Connection", "keep-alive")
   local reqstr = build_request(host, port, req.method, req.path, req.options)
-  local socket, partial, bopt = comm.tryssl(host, port, reqstr, tableaux.tcopy(pipeline_comm_opts))
+  local socket, partial, bopt = comm.tryssl(host, port, reqstr, pipeline_comm_opts)
   if not socket then
     return nil
   end
@@ -2029,7 +2025,7 @@ function pipeline_go(host, port, all_requests)
       if not socket then
         return nil
       end
-      socket:set_timeout(pipeline_comm_opts.request_timeout)
+      socket:set_timeout(10000)
       partial = ""
       connsent = 0
     end
@@ -2861,7 +2857,7 @@ end
 --@param contenttype [optional] The content-type value for the path, if it's known.
 function save_path(host, port, path, status, links_to, linked_from, contenttype)
   -- Make sure we have a proper hostname and port
-  host = ascii_hostname(host)
+  host = stdnse.get_hostname(host)
   if(type(port) == 'table') then
     port = port['number']
   end
@@ -2892,50 +2888,42 @@ function save_path(host, port, path, status, links_to, linked_from, contenttype)
     end
   end
 
-  if parsed.host then
-    host = parsed.ascii_host or parsed.host
-  end
-
-  if parsed.port then
-    port = parsed.port
-  end
-
   -- Add to the 'all_pages' key
-  stdnse.registry_add_array({host, 'www', port, 'all_pages'}, parsed['path'])
+  stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'all_pages'}, parsed['path'])
 
   -- Add the URL with querystring to all_pages_full_query
-  stdnse.registry_add_array({host, 'www', port, 'all_pages_full_query'}, parsed['path_query'])
+  stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'all_pages_full_query'}, parsed['path_query'])
 
   -- Add the URL to a key matching the response code
   if(status) then
-    stdnse.registry_add_array({host, 'www', port, 'status_codes', status}, parsed['path'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'status_codes', status}, parsed['path'])
   end
 
   -- If it's a directory, add it to the directories list; otherwise, add it to the files list
   if(parsed['is_folder']) then
-    stdnse.registry_add_array({host, 'www', port, 'directories'}, parsed['path'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'directories'}, parsed['path'])
   else
-    stdnse.registry_add_array({host, 'www', port, 'files'}, parsed['path'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'files'}, parsed['path'])
   end
 
 
   -- If we have an extension, add it to the extensions key
   if(parsed['extension']) then
-    stdnse.registry_add_array({host, 'www', port, 'extensions', parsed['extension']}, parsed['path'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'extensions', parsed['extension']}, parsed['path'])
   end
 
   -- Add an entry for the page and its arguments
   if(parsed['querystring']) then
     -- Add all scripts with a querystring to the 'cgi' and 'cgi_full_query' keys
-    stdnse.registry_add_array({host, 'www', port, 'cgi'}, parsed['path'])
-    stdnse.registry_add_array({host, 'www', port, 'cgi_full_query'}, parsed['path_query'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi'}, parsed['path'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi_full_query'}, parsed['path_query'])
 
     -- Add the query string alone to the registry (probably not necessary)
-    stdnse.registry_add_array({host, 'www', port, 'cgi_querystring', parsed['path'] }, parsed['raw_querystring'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi_querystring', parsed['path'] }, parsed['raw_querystring'])
 
     -- Add the individual arguments for the page, along with their values
     for key, value in pairs(parsed['querystring']) do
-      stdnse.registry_add_array({host, 'www', port, 'cgi_args', parsed['path']}, parsed['querystring'])
+      stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi_args', parsed['path']}, parsed['querystring'])
     end
   end
 
@@ -2946,7 +2934,7 @@ function save_path(host, port, path, status, links_to, linked_from, contenttype)
     end
 
     for _, v in ipairs(links_to) do
-      stdnse.registry_add_array({host, 'www', port, 'links_to', parsed['path_query']}, v)
+      stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'links_to', parsed['path_query']}, v)
     end
   end
 
@@ -2957,13 +2945,13 @@ function save_path(host, port, path, status, links_to, linked_from, contenttype)
     end
 
     for _, v in ipairs(linked_from) do
-      stdnse.registry_add_array({host, 'www', port, 'links_to', v}, parsed['path_query'])
+      stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'links_to', v}, parsed['path_query'])
     end
   end
 
   -- Save it as a content-type, if we have one
   if(contenttype) then
-    stdnse.registry_add_array({host, 'www', port, 'content-type', contenttype}, parsed['path_query'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'content-type', contenttype}, parsed['path_query'])
   end
 end
 
@@ -3223,100 +3211,6 @@ do
     test_suite:add_test(unittest.equal(fragment, test.fragment), test.name .. " (fragment)")
   end
 
-  local parse_redirect_tests = {}
-  table.insert(parse_redirect_tests,
-    { name = "redirect plain URL",
-      host = "example.com",
-      port = 80,
-      path = "initial_path",
-      redirect_scheme = "http",
-      redirect_host = "example.com",
-      redirect_port = 80,
-      redirect_path = "/redirect_path",
-      response = {
-        status = 301,
-        header = {
-          location = "http://example.com:80/redirect_path"
-        }
-      }
-    }
-  )
-  table.insert(parse_redirect_tests,
-    { name = "redirect URL with query",
-      host = "example.com",
-      port = 80,
-      path = "initial_path",
-      redirect_scheme = "http",
-      redirect_host = "example.com",
-      redirect_port = 80,
-      redirect_path = "/redirect_path?query=1234",
-      response = {
-        status = 301,
-        header = {
-          location = "http://example.com:80/redirect_path?query=1234"
-        }
-      }
-    }
-    )
-  table.insert(parse_redirect_tests,
-    { name = "redirect URL with semicolon params",
-      host = "example.com",
-      port = 80,
-      path = "initial_path",
-      redirect_scheme = "http",
-      redirect_host = "example.com",
-      redirect_port = 80,
-      redirect_path = "/redirect_path;param=1234",
-      response = {
-        status = 301,
-        header = {
-          location = "http://example.com:80/redirect_path;param=1234"
-        }
-      }
-    }
-    )
-  table.insert(parse_redirect_tests,
-    { name = "redirect URL with multiple semicolon params",
-      host = "example.com",
-      port = 80,
-      path = "initial_path",
-      redirect_scheme = "http",
-      redirect_host = "example.com",
-      redirect_port = 80,
-      redirect_path = "/redirect_path;param1=1234;param2",
-      response = {
-        status = 301,
-        header = {
-          location = "http://example.com:80/redirect_path;param1=1234;param2"
-        }
-      }
-    }
-    )
-  table.insert(parse_redirect_tests,
-    { name = "redirect URL with semicolon params and query",
-      host = "example.com",
-      port = 80,
-      path = "initial_path",
-      redirect_scheme = "http",
-      redirect_host = "example.com",
-      redirect_port = 80,
-      redirect_path = "/redirect_path;param1=1234;param2&query=abc",
-      response = {
-        status = 301,
-        header = {
-          location = "http://example.com:80/redirect_path;param1=1234;param2&query=abc"
-        }
-      }
-    }
-    )
-
-  for _, test in ipairs(parse_redirect_tests) do
-    local redirect_url = parse_redirect(test.host, test.port, test.path, test.response)
-    test_suite:add_test(unittest.equal(redirect_url.scheme, test.redirect_scheme))
-    test_suite:add_test(unittest.equal(redirect_url.host, test.redirect_host))
-    test_suite:add_test(unittest.equal(redirect_url.port, test.redirect_port))
-    test_suite:add_test(unittest.equal(redirect_url.path, test.redirect_path))
-  end
 end
 
 return _ENV;

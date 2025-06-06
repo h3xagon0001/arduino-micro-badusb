@@ -16,20 +16,10 @@ username which may be invalid. The abandoned connection will likely be logged.
 --
 -- @output
 -- 22/tcp open  ssh     syn-ack
--- 22/tcp open  ssh     syn-ack
 -- | ssh-auth-methods:
 -- |   Supported authentication methods:
 -- |     publickey
--- |     password
--- |   Banner: This is a private system. Use of this system constitutes
--- |_consent to monitoring.
---
--- @xmloutput
--- <table key="Supported authentication methods">
---   <elem>publickey</elem>
---   <elem>password</elem>
--- </table>
--- <elem key="Banner">This is a private system. Use of this system constitutes&#xa;consent to monitoring.&#xa;</elem>
+-- |_    password
 
 author = "Devin Bjelland"
 license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
@@ -41,15 +31,13 @@ portrule = shortport.ssh
 function action (host, port)
   local result = stdnse.output_table()
   local helper = libssh2_util.SSHConnection:new()
-  local status, err = helper:connect_pcall(host, port)
-  if not status then
-    return "Failed to connect to ssh server: " .. err
+  if not helper:connect(host, port) then
+    return "Failed to connect to ssh server"
   end
 
   local authmethods = helper:list(username)
 
   result["Supported authentication methods"] = authmethods
-  result["Banner"] = helper:banner()
 
   return result
 end

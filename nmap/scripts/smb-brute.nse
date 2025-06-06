@@ -1063,7 +1063,9 @@ local function go(host)
   return true, hostinfo['accounts'], hostinfo['locked_usernames']
 end
 
+--_G.TRACEBACK = TRACEBACK or {}
 action = function(host)
+  -- TRACEBACK[coroutine.running()] = true;
 
   local status, result
   local response = {}

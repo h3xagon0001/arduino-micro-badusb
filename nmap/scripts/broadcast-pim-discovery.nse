@@ -40,7 +40,6 @@ license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "broadcast"}
 
 prerule = function()
-  -- TODO: IPv6 is supported by PIM-SM
   if nmap.address_family() ~= 'inet' then
     stdnse.verbose1("is IPv4 only.")
     return false
@@ -124,7 +123,7 @@ end
 --- Returns the network interface used to send packets to the destination host.
 --@param destination host to which the interface is used.
 --@return interface Network interface used for destination host.
-local getInterface = function(interfaces, destination)
+local getInterface = function(destination)
   -- First, create dummy UDP connection to get interface
   local sock = nmap.new_socket()
   local status, err = sock:connect(destination, "12345", "udp")
@@ -137,16 +136,10 @@ local getInterface = function(interfaces, destination)
     stdnse.verbose1("%s", err)
     return
   end
-  for _, interface in ipairs(interfaces) do
+  for _, interface in pairs(nmap.list_interfaces()) do
     if interface.address == address then
       return interface
     end
-  end
-end
-
-local filter_interfaces = function (if_table)
-  if if_table.up == "up" and if_table.address:match("%d+%.%d+%.%d+%.%d+") then
-    return if_table
   end
 end
 
@@ -157,15 +150,12 @@ action = function()
   local mcast = "224.0.0.13"
 
   -- Get the network interface to use
-  local interface
-  local interfaces = stdnse.get_script_interfaces(filter_interfaces)
-  if #interfaces > 1 then
-    -- TODO: send on multiple interfaces
-    interface = getInterface(interfaces, mcast)
-  elseif #interfaces == 1 then
-    interface = interfaces[1]
+  local interface = nmap.get_interface()
+  if interface then
+    interface = nmap.get_interface_info(interface)
+  else
+    interface = getInterface(mcast)
   end
-
   if not interface then
     return stdnse.format_output(false, ("Couldn't get interface for %s"):format(mcast))
   end

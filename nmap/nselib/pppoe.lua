@@ -30,6 +30,11 @@ local table = require "table"
 _ENV = stdnse.module("pppoe", stdnse.seeall)
 
 
+EtherType = {
+  PPPOE_DISCOVERY = 0x8863,
+  PPPOE_SESSION = 0x8864,
+}
+
 -- A Class to handle the Link Control Protocol LCP
 LCP = {
 
@@ -704,7 +709,7 @@ Comm = {
     local p = packet.Frame:new(l2..l3)
 
     -- there's probably a more elegant way of doing this
-    if ( packet.ETHER_TYPE_PPPOE_DISCOVERY == p.ether_type ) then
+    if ( EtherType.PPPOE_DISCOVERY == p.ether_type ) then
       if ( header.code == PPPoE.Code.PADO ) then
         local pado = PPPoE.PADO.parse(l3)
         pado.mac_srv = p.mac_src
@@ -716,7 +721,7 @@ Comm = {
         local pads = PPPoE.PADT.parse(l3)
         return true, pads
       end
-    elseif ( packet.ETHER_TYPE_PPPOE_SESSION == p.ether_type ) then
+    elseif ( EtherType.PPPOE_SESSION == p.ether_type ) then
       return true, PPPoE.SessionData.parse(l3)
     end
     return false, ("Received unsupported response, can't decode code (%d)"):format(header.code)

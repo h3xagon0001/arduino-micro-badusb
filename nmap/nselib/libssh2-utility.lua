@@ -57,13 +57,12 @@ end
 -- Runs a shell command on the remote host.
 --
 -- @param cmd A command to run.
--- @param no_pty If true, skip requesting a PTY.
 -- @return The command output.
-function SSHConnection:run_remote (cmd, no_pty)
+function SSHConnection:run_remote (cmd)
   if not (self.session and self.authenticated) then
     return false
   end
-  local channel = libssh2.open_channel(self.session, no_pty)
+  local channel = libssh2.open_channel(self.session)
   libssh2.channel_exec(self.session, channel, cmd)
   libssh2.channel_send_eof(self.session, channel)
   local buff = {}
@@ -72,9 +71,6 @@ function SSHConnection:run_remote (cmd, no_pty)
     data = libssh2.channel_read(self.session, channel)
     if data then
       table.insert(buff, data)
-    elseif no_pty then
-      -- PTY is responsible for sending EOF
-      break
     end
   end
   return table.concat(buff)
@@ -99,10 +95,10 @@ function SSHConnection:password_auth (username, password)
 end
 
 ---
--- Attempts to authenticate using provided private key file.
+-- Attempts to authenticate using provided private key.
 --
 -- @param username A username to authenticate as.
--- @param privatekey_file A path to a privatekey file.
+-- @param privatekey_file A path to a privatekey.
 -- @param passphrase A passphrase for the privatekey.
 -- @return true on success or false on failure.
 function SSHConnection:publickey_auth (username, privatekey_file, passphrase)
@@ -110,25 +106,6 @@ function SSHConnection:publickey_auth (username, privatekey_file, passphrase)
     return false
   end
   if libssh2.userauth_publickey(self.session, username, privatekey_file, passphrase or "") then
-    self.authenticated = true
-    return true
-  else
-    return false
-  end
-end
-
----
--- Attempts to authenticate using provided private key.
---
--- @param username A username to authenticate as.
--- @param privatekey The privatekey as a string.
--- @param passphrase A passphrase for the privatekey.
--- @return true on success or false on failure.
-function SSHConnection:publickey_auth_frommemory (username, privatekey, passphrase)
-  if not self.session then
-    return false
-  end
-  if libssh2.userauth_publickey_frommemory(self.session, username, privatekey, passphrase or "") then
     self.authenticated = true
     return true
   else
@@ -168,23 +145,6 @@ function SSHConnection:list (username)
     return methods
   end
   return false
-end
-
----
--- Attempt to retrieve the server's pre-auth banner
---
--- Need to attempt auth first (for instance by calling list)
---
--- @return The server's banner or nil on failure.
-function SSHConnection:banner ()
-  if not self.session then
-    return nil
-  end
-  local status, banner = pcall(libssh2.userauth_banner, self.session)
-  if status then
-    return banner
-  end
-  return nil
 end
 
 ---

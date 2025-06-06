@@ -220,13 +220,13 @@ function make_buffer(socket, sep)
         return self();
       end
     else
-      local i, j = find(buffer, sep, point);
+      local i, j = buffer:find(sep, point);
       if i then
-        local ret = sub(buffer, point, i-1);
+        local ret = buffer:sub(point, i-1);
         point = j + 1;
         return ret;
       else
-        point, left, buffer = 1, sub(buffer, point), nil;
+        point, left, buffer = 1, buffer:sub(point), nil;
         return self();
       end
     end
@@ -264,8 +264,8 @@ do
 -- @param n Number to convert.
 -- @return String in binary format.
   function tobinary(n)
-    -- enforced by string.format: assert(tonumber(n), "number expected");
-    return gsub(format("%x", n), "%w", t)
+    assert(tonumber(n), "number expected");
+    return (("%x"):format(n):gsub("%w", t))
   end
 end
 
@@ -274,14 +274,11 @@ end
 -- @param n Number to convert.
 -- @return String in octal format.
 function tooctal(n)
-  -- enforced by string.format: assert(tonumber(n), "number expected");
-  return format("%o", n)
+  assert(tonumber(n), "number expected");
+  return ("%o"):format(n)
 end
 
-local tohex_helper =  function(b)
-  return format("%02x", byte(b))
-end
---- Encode a string or integer in hexadecimal (12 becomes "c", "AB" becomes
+--- Encode a string or number in hexadecimal (12 becomes "c", "AB" becomes
 -- "4142").
 --
 -- An optional second argument is a table with formatting options. The possible
@@ -304,9 +301,9 @@ function tohex( s, options )
   local hex
 
   if type( s ) == "number" then
-    hex = format("%x", s)
+    hex = ("%x"):format(s)
   elseif type( s ) == 'string' then
-    hex = gsub(s, ".", tohex_helper)
+    hex = ("%02x"):rep(#s):format(s:byte(1,#s))
   else
     error( "Type not supported in tohex(): " .. type(s), 2 )
   end
@@ -314,14 +311,14 @@ function tohex( s, options )
   -- format hex if we got a separator
   if separator then
     local group = options.group or 2
-    local extra = (group - #hex % group) % group
-    if extra > 0 then
-      -- pad the input to make it an exact multiple of the group size
-      hex = rep("0", extra) .. hex
+    local fmt_table = {}
+    -- split hex in group-size chunks
+    for i=#hex,1,-group do
+      -- table index must be consecutive otherwise table.concat won't work
+      fmt_table[ceil(i/group)] = hex:sub(max(i-group+1,1),i)
     end
-    hex = gsub(hex, rep(".", group), "%0" .. gsub(separator, "%%", "%%%%"))
-    -- remove the padding and trim the last separator
-    hex = sub(hex, extra + 1, -(#separator + 1))
+
+    hex = concat( fmt_table, separator )
   end
 
   return hex
@@ -341,15 +338,15 @@ end
 -- @return A string of bytes or nil if string could not be decoded
 -- @return Error message if string could not be decoded
 function fromhex (hex)
-  local p = find(hex, "[^%x%s]")
+  local p = hex:find("[^%x%s]")
   if p then
     return nil, "Invalid hexadecimal digits at position " .. p
   end
-  hex = gsub(hex, "%s+", "")
+  hex = hex:gsub("%s+", "")
   if #hex % 2 ~= 0 then
     return nil, "Odd number of hexadecimal digits"
   end
-  return gsub(hex, "..", fromhex_helper)
+  return hex:gsub("..", fromhex_helper)
 end
 
 local colonsep = {separator=":"}
@@ -607,7 +604,7 @@ local function arg_value(argname)
   end
 
   -- if scriptname.arg is not there, check "arg"
-  local shortname = match(argname, "%.([^.]*)$")
+  local shortname = argname:match("%.([^.]*)$")
   if shortname then
     -- as a key/value pair
     if nmap.registry.args[shortname] then
@@ -628,7 +625,7 @@ end
 -- @usage
 -- --script-args 'script.arg1=value,script.arg3,script-x.arg=value'
 -- local arg1, arg2, arg3 = get_script_args('script.arg1','script.arg2','script.arg3')
---      => arg1 = "value"
+--      => arg1 = value
 --      => arg2 = nil
 --      => arg3 = 1
 --
@@ -640,10 +637,10 @@ end
 -- --script-args 'dns-cache-snoop.mode=timed,dns-cache-snoop.domains={host1,host2}'
 -- local mode, domains = get_script_args('dns-cache-snoop.mode',
 --                                       'dns-cache-snoop.domains')
---      => mode    = "timed"
---      => domains = {"host1","host2"}
+--      => mode    = 'timed'
+--      => domains = {host1,host2}
 --
--- @param ...  Script arguments to check.
+-- @param Arguments  Script arguments to check.
 -- @return Arguments values.
 function get_script_args (...)
   local args = {}
@@ -662,49 +659,6 @@ function get_script_args (...)
   end
 
   return unpack(args, 1, select("#", ...))
-end
-
-local function identity(...)
-  return ...
-end
-
----Get the interfaces that are appropriate for a script to use.
---
--- This function returns interface information in the same format as
--- <code>nmap.list_interfaces()</code>, but if any of the following are given,
--- the list will have at most one interface corresponding to the first
--- available from this list:
--- * The <code>SCRIPT_NAME.interface</code> script-arg
--- * The <code>interface</code> script-arg
--- * The <code>-e</code> option
---
--- @param filter_func A function to filter the result
--- @return A list of interfaces
--- @see nmap.list_interfaces
--- @see nmap.get_interface
--- @see stdnse.get_script_args
--- @usage
--- local up_filter = function (if_table)
---   if if_table.up == "up" then
---     return if_table
---   end
--- end
---
--- local up_interfaces = stdnse.get_script_interfaces(up_filter)
-function get_script_interfaces(filter_func)
-  filter_func = filter_func or identity
-  local interface = arg_value(getid() .. ".interface") or nmap.get_interface()
-  if interface then
-    return {filter_func(nmap.get_interface_info(interface))}
-  end
-  local ret = {}
-  for _, if_table in ipairs(nmap.list_interfaces()) do
-    local ift = filter_func(if_table)
-    if ift then
-      insert(ret, ift)
-    end
-  end
-  return ret
 end
 
 ---Get the best possible hostname for the given host. This can be the target as given on
@@ -946,7 +900,7 @@ do end -- no function here, see nse_main.lua
 function module (name, ...)
   local env = {};
   env._NAME = name;
-  env._PACKAGE = match(name, "(.+)%.[^.]+$");
+  env._PACKAGE = name:match("(.+)%.[^.]+$");
   env._M = env;
   local mods = pack(...);
   for i = 1, mods.n do

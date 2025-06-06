@@ -1,6 +1,7 @@
 local os = require "os"
 local datetime = require "datetime"
 local mssql = require "mssql"
+local shortport = require "shortport"
 local stdnse = require "stdnse"
 local smbauth = require "smbauth"
 local string = require "string"
@@ -45,9 +46,9 @@ author = "Justin Cacak"
 license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
-dependencies = {"broadcast-ms-sql-discover"}
+portrule = shortport.port_or_service(1433, "ms-sql-s")
 
-local do_action = function(host, port)
+action = function(host, port)
 
   local output = stdnse.output_table()
 
@@ -126,9 +127,3 @@ local do_action = function(host, port)
   return output
 
 end
-
-local function process_instance(instance)
-  return do_action(instance.host, instance.port)
-end
-
-action, portrule = mssql.Helper.InitScript(process_instance)

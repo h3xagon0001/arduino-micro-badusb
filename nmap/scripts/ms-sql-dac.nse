@@ -1,6 +1,8 @@
+local coroutine = require "coroutine"
 local mssql = require "mssql"
 local nmap = require "nmap"
 local stdnse = require "stdnse"
+local table = require "table"
 
 description = [[
 Queries the Microsoft SQL Browser service for the DAC (Dedicated Admin
@@ -26,60 +28,77 @@ accessible or not.
 --
 -- @output
 -- | ms-sql-dac:
--- |   SQLSERVER:
--- |     port: 1533
--- |_    state: open
+-- |_  Instance: SQLSERVER; DAC port: 1533
 --
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-dependencies = {"broadcast-ms-sql-discover"}
+hostrule = function(host)
+  if ( mssql.Helper.WasDiscoveryPerformed( host ) ) then
+    return mssql.Helper.GetDiscoveredInstances( host ) ~= nil
+  else
+    local sqlBrowserPort = nmap.get_port_state( host, {number = 1434, protocol = "udp"} )
+    if ( (stdnse.get_script_args( {"mssql.instance-all", "mssql.instance-name", "mssql.instance-port"} ) ~= nil) or
+        (sqlBrowserPort and (sqlBrowserPort.state == "open" or sqlBrowserPort.state == "open|filtered")) ) then
+      return true
+    end
+  end
+end
 
 local function checkPort(host, port)
-  local scanport = nmap.get_port_state(host, {number=port, protocol="tcp"})
-  if scanport then
-    return scanport.state
-  end
   local s = nmap.new_socket()
   s:set_timeout(5000)
-  local status, err = s:connect(host, port, "tcp")
+  local status = s:connect(host, port, "tcp")
   s:close()
-  return (status and "open" or "closed"), err
+  return status
 end
 
-local function discoverDAC(instance)
-  stdnse.debug2("Discovering DAC port on instance: %s", instance:GetName())
-  local port = mssql.Helper.DiscoverDACPort(instance)
-  if not port then
-    return nil
-  end
-
-  local result = stdnse.output_table()
-  result.port = port
-  local state, err = checkPort(instance.host, port)
-  result.state = state
-  result.error = err
-  return result
-end
-
-local lib_portrule, lib_hostrule
-action, lib_portrule, lib_hostrule = mssql.Helper.InitScript(discoverDAC)
-
-local function rule_if_browser_open(lib_rule)
-  return function (host, ...)
-    if not lib_rule(host, ...) then
-      return false
+local function discoverDAC(host, name, result)
+  local condvar = nmap.condvar(result)
+  stdnse.debug2("Discovering DAC port on instance: %s", name)
+  local port = mssql.Helper.DiscoverDACPort( host, name )
+  if ( port ) then
+    if ( checkPort(host, port) ) then
+      table.insert(result, ("Instance: %s; DAC port: %s"):format(name, port))
+    else
+      table.insert(result, ("Instance: %s; DAC port: %s (connection failed)"):format(name, port))
     end
-    local bport = nmap.get_port_state(host, {number=1434, protocol="udp"})
-    -- If port is nil, we don't know the state
-    return bport == nil or (
-      -- we know the state, so it has to be a good one
-      bport.state == "open" or bport.state == "open|filtered"
-      )
   end
+  condvar "signal"
 end
 
-portrule = rule_if_browser_open(lib_portrule)
-hostrule = rule_if_browser_open(lib_hostrule)
+action = function( host )
+  local result, threads = {}, {}
+  local condvar = nmap.condvar(result)
+
+  local status, instanceList = mssql.Helper.GetTargetInstances( host )
+  -- if no instances were targeted, then display info on all
+  if ( not status ) then
+    if ( not mssql.Helper.WasDiscoveryPerformed( host ) ) then
+      mssql.Helper.Discover( host )
+    end
+    instanceList = mssql.Helper.GetDiscoveredInstances( host )
+  end
+
+  for _, instance in ipairs(instanceList or {}) do
+    local name = instance:GetName():match("^[^\\]*\\(.*)$")
+    if ( name ) then
+      local co = stdnse.new_thread(discoverDAC, host, name, result)
+      threads[co] = true
+    end
+  end
+
+  while(next(threads)) do
+    for t in pairs(threads) do
+      threads[t] = ( coroutine.status(t) ~= "dead" ) and true or nil
+    end
+    if ( next(threads) ) then
+      condvar "wait"
+    end
+  end
+
+  return stdnse.format_output( true, result )
+end
+

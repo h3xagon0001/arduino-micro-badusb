@@ -103,14 +103,12 @@ local isRPC = function(host, port)
       -- If we got response, set port to open
       nmap.set_port_state(host, port, "open")
 
-      if #data >= 8 then
-        rxid, msgtype = string.unpack(">I4 I4", data)
-        -- If response XID does match request XID
-        -- and message type equals 1 (REPLY) then
-        -- it is a RPC port.
-        if rxid == xid and msgtype == 1 then
-          return true
-        end
+      rxid, msgtype = string.unpack(">I4 I4", data)
+      -- If response XID does match request XID
+      -- and message type equals 1 (REPLY) then
+      -- it is a RPC port.
+      if rxid == xid and msgtype == 1 then
+        return true
       end
     end
   end

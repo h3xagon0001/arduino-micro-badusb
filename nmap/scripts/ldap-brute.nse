@@ -306,9 +306,10 @@ action = function( host, port )
     end
   end
 
-  output = stdnse.format_output(true, valid_accounts)
   if err then
-    output = (output or "") .. stdnse.format_output(true, err)
+    output = stdnse.format_output(true, valid_accounts ) .. stdnse.format_output(true, err) or stdnse.format_output(true, err)
+  else
+    output = stdnse.format_output(true, valid_accounts) or ""
   end
 
   return output

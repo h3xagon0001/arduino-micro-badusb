@@ -77,7 +77,13 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
-dependencies = {"broadcast-ms-sql-discover", "ms-sql-empty-password"}
+dependencies = {"ms-sql-empty-password"}
+
+
+
+hostrule = mssql.Helper.GetHostrule_Standard()
+portrule = mssql.Helper.GetPortrule_Standard()
+
 
 --- Returns formatted output for the given instance
 local function create_instance_output_table( instance )
@@ -126,7 +132,7 @@ local function create_instance_output_table( instance )
     end
   end
 
-  return stdnse.format_output(true, instanceOutput)
+  return instanceOutput
 
 end
 
@@ -193,7 +199,7 @@ local function test_credentials( instance, helper, username, password )
 end
 
 --- Processes a single instance, attempting to detect an empty password for "sa"
-process_instance = function ( instance )
+local function process_instance( instance )
 
   -- One of this script's features is that it will report an instance's
   -- in both the port-script results and the host-script results. In order to
@@ -269,10 +275,10 @@ process_instance = function ( instance )
 
 end
 
-local do_action
-do_action, portrule, hostrule = mssql.Helper.InitScript(process_instance)
 
-action = function(...)
+action = function( host, port )
+  local scriptOutput = {}
+  local status, instanceList = mssql.Helper.GetTargetInstances( host, port )
 
   local domain, bruteWindows = stdnse.get_script_args("mssql.domain", "ms-sql-brute.brute-windows-accounts")
 
@@ -286,5 +292,16 @@ action = function(...)
     return ret
   end
 
-  return do_action(...)
+  if ( not status ) then
+    return stdnse.format_output( false, instanceList )
+  else
+    for _, instance in pairs( instanceList ) do
+      local instanceOutput = process_instance( instance )
+      if instanceOutput then
+        table.insert( scriptOutput, instanceOutput )
+      end
+    end
+  end
+
+  return stdnse.format_output( true, scriptOutput )
 end

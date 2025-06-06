@@ -45,7 +45,7 @@ action = function()
   local status, result = helper:queryServices()
 
   if ( status ) then
-    return result
+    return stdnse.format_output(true, result)
   end
 end
 

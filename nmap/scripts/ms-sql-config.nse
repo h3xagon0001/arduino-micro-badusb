@@ -70,7 +70,12 @@ license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
 
-dependencies = {"broadcast-ms-sql-discover", "ms-sql-brute", "ms-sql-empty-password"}
+dependencies = {"ms-sql-brute", "ms-sql-empty-password"}
+
+
+hostrule = mssql.Helper.GetHostrule_Standard()
+portrule = mssql.Helper.GetPortrule_Standard()
+
 
 --- Processes a set of instances
 local function process_instance( instance )
@@ -125,8 +130,28 @@ local function process_instance( instance )
 
   helper:Disconnect()
 
-  -- TODO: structured output instead of format_output
-  return stdnse.format_output(true, result)
+  local instanceOutput = {}
+  instanceOutput["name"] = string.format( "[%s]", instance:GetName() )
+  table.insert( instanceOutput, result )
+
+  return instanceOutput
 end
 
-action, portrule, hostrule = mssql.Helper.InitScript(process_instance)
+
+action = function( host, port )
+  local scriptOutput = {}
+  local status, instanceList = mssql.Helper.GetTargetInstances( host, port )
+
+  if ( not status ) then
+    return stdnse.format_output( false, instanceList )
+  else
+    for _, instance in pairs( instanceList ) do
+      local instanceOutput = process_instance( instance )
+      if instanceOutput then
+        table.insert( scriptOutput, instanceOutput )
+      end
+    end
+  end
+
+  return stdnse.format_output( true, scriptOutput )
+end

@@ -275,8 +275,7 @@ function loginRequest( socket, params, username, password, salt )
       response.sqlstate, pos = string.unpack( "c5", packet, pos )
     end
 
-    -- Error message is a RestOfPacketString
-    response.errormessage = string.sub(packet, pos)
+    response.errormessage, pos = string.unpack( "z", packet, pos )
 
     return false, response.errormessage
   else

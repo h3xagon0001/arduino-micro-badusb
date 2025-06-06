@@ -52,11 +52,26 @@ local function createRequestList(req_list)
 end
 
 
-local function filter_interfaces(iface)
-  if ( iface.link == "ethernet" and iface.up == "up" ) then
-    return iface
+-- Gets a list of available interfaces based on link and up filters
+--
+-- @param link string containing the link type to filter
+-- @param up string containing the interface status to filter
+-- @return result table containing the matching interfaces
+local function getInterfaces(link, up)
+  if( not(nmap.list_interfaces) ) then return end
+  local interfaces, err = nmap.list_interfaces()
+  local result
+  if ( not(err) ) then
+    for _, iface in ipairs(interfaces) do
+      if ( iface.link == link and iface.up == up ) then
+        result = result or {}
+        result[iface.device] = true
+      end
+    end
   end
+  return result
 end
+
 
 local function parseDHCPResponse(response)
   for _, v in ipairs(response.options) do
@@ -120,7 +135,7 @@ local function enumWPADNames(domain)
 
 end
 
-local function dnsDiscover(interfaces)
+local function dnsDiscover()
   -- first try a domain if it was supplied
   if ( arg_domain ) then
     local status, response = enumWPADNames(arg_domain)
@@ -132,7 +147,9 @@ local function dnsDiscover(interfaces)
 
   -- if no domain was supplied, attempt to reverse lookup every ip on each
   -- interface to find our FQDN hostname, once we do, try to query for WPAD
-  for _, iface in ipairs(interfaces) do
+  for i in pairs(getInterfaces("ethernet", "up") or {}) do
+    local iface, err = nmap.get_interface_info(i)
+    if ( iface ) then
       local status, response = dns.query( dns.reverse(iface.address), { dtype = 'PTR', retAll = true } )
 
       -- did we get a name back from dns?
@@ -158,16 +175,19 @@ local function dnsDiscover(interfaces)
 
       end
 
+    end
   end
 
   return false, "Failed to find WPAD using DNS"
 
 end
 
-local function dhcpDiscover(interfaces)
+local function dhcpDiscover()
 
   -- send a DHCP discover on all ethernet interfaces that are up
-  for _, iface in ipairs(interfaces) do
+  for i in pairs(getInterfaces("ethernet", "up") or {}) do
+    local iface, err = nmap.get_interface_info(i)
+    if ( iface ) then
       local req_list = createRequestList( { 1, 15, 3, 6, 44, 46, 47, 31, 33, 249, 43, 252 } )
       local status, response = dhcp.make_request("255.255.255.255", dhcp.request_types["DHCPDISCOVER"], "0.0.0.0", iface.mac, nil, req_list, { flags = 0x8000 } )
 
@@ -175,6 +195,7 @@ local function dhcpDiscover(interfaces)
       if (status) then
         return status, response
       end
+    end
   end
 
 end
@@ -183,7 +204,6 @@ local function fail (err) return stdnse.format_output(false, err) end
 
 action = function()
 
-  local interfaces = stdnse.get_script_interfaces(filter_interfaces)
   local status, response, wpad
 
   if ( arg_nodhcp and arg_nodns ) then
@@ -192,7 +212,7 @@ action = function()
   end
 
   if ( nmap.is_privileged() and not(arg_nodhcp) ) then
-    status, response = dhcpDiscover(interfaces)
+    status, response = dhcpDiscover()
     if ( status ) then
       status, wpad = parseDHCPResponse(response)
     end
@@ -200,7 +220,7 @@ action = function()
 
   -- if the DHCP did not get a result, fallback to DNS
   if (not(status) and not(arg_nodns) ) then
-    status, response = dnsDiscover(interfaces)
+    status, response = dnsDiscover()
     if ( not(status) ) then
       local services = "DNS" .. ( nmap.is_privileged() and "/DHCP" or "" )
       return fail(("Could not find WPAD using %s"):format(services))

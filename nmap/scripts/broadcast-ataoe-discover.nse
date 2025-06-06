@@ -30,13 +30,7 @@ license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
-prerule = function()
-  if ( not(nmap.is_privileged()) ) then
-    stdnse.verbose1("not running for lack of privileges")
-    return false
-  end
-  return true
-end
+prerule = function() return true end
 
 -- The minimalistic ATAoE interface
 ATAoE = {
@@ -105,14 +99,14 @@ ATAoE = {
 -- Send a Config Info Request to the ethernet broadcast address
 -- @param iface table as returned by nmap.get_interface_info()
 local function sendConfigInfoRequest(iface)
-  local ETHER_BROADCAST = "ff:ff:ff:ff:ff:ff"
+  local ETHER_BROADCAST, P_ATAOE = "ff:ff:ff:ff:ff:ff", 0x88a2
   local req = ATAoE.ConfigInfoRequest:new()
   local tag = req.tag
 
   local p = packet.Frame:new()
   p.mac_src = iface.mac
   p.mac_dst = packet.mactobin(ETHER_BROADCAST)
-  p.ether_type = packet.ETHER_TYPE_ATAOE
+  p.ether_type = string.pack(">I2", P_ATAOE)
   p.buf = tostring(req)
   p:build_ether_frame()
 
@@ -124,15 +118,18 @@ end
 
 action = function()
 
-  local iface
-  local collect_interface = function (if_table)
-    if not iface and if_table.up == "up" and if_table.link == "ethernet" then
-      iface = if_table
-    end
+  local iname = nmap.get_interface()
+  if ( not(iname) ) then
+    stdnse.verbose1("No interface supplied, use -e")
+    return
   end
 
-  stdnse.get_script_interfaces(collect_interface)
+  if ( not(nmap.is_privileged()) ) then
+    stdnse.verbose1("not running for lack of privileges")
+    return
+  end
 
+  local iface = nmap.get_interface_info(iname)
   if ( not(iface) ) then
     return stdnse.format_output(false, "Failed to retrieve interface information")
   end
@@ -150,6 +147,7 @@ action = function()
     if ( status ) then
       local header = ATAoE.Header.parse(l3_data)
       local f = packet.Frame:new(l2_data)
+      f:ether_parse()
 
       local str = ("Server: %s; Version: %d; Major: %d; Minor: %d"):format(
         stdnse.format_mac(f.mac_src),
