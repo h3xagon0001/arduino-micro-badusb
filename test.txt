@@ -1,1 +1,1 @@
-some text here that can be executed via powershell
+cd C:\Users\Oxford\Documents\GitHub\arduino-micro-badusb; .\main.ps1; powershell
