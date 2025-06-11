@@ -1,3 +1,5 @@
+# alt dl link https://files.catbox.moe/f2cqrc.zip
+
 # change directory into nmap folder
 Write-Output "Changing Directory"
 Set-Location -Path "$($env:APPDATA)\Fairy\nmap"
