@@ -13,7 +13,7 @@ Write-Output "Scan Finished"
 #>
 
 # get ip of listener (disabled until I find a more reliable way)
-$ListenerIP = "192.168.1.5"
+$ListenerIP = "10.133.33.205"
 <#
 Write-Output "Getting IP"
 $string = $ScanOutput | Select-String -Pattern "192\.168\..+"
