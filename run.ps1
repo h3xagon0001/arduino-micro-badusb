@@ -1,0 +1,1 @@
+# this script will download the latest version of fairy and run it
