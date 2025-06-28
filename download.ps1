@@ -11,3 +11,5 @@ Expand-Archive -LiteralPath "./nmap.zip" -DestinationPath "$($env:APPDATA)\Fairy
 
 # run run.vbs for the first time
 ./run.vbs
+
+exit
