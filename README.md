@@ -10,6 +10,10 @@ The listener machine will have to execute the following command in powershell in
 ```powershell
 .\ncat.exe -l [port_num]
 ```
+Once connected, run the following command to allow script execution and run init.ps1
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; cd..; .\init.ps1
+```
 ## Shortcuts
 This program can allow the listener to execute basic powershell commands on target machine, but also has a few extra features:
 
@@ -31,6 +35,7 @@ Invoke-CimMethod -InputObject (Get-CimInstance -Namespace root/wmi -ClassName Wm
 
 **Sending Keystrokes**
 ```powershell
+$wshell = New-Object -ComObject wscript.shell # run this first
 $wshell.SendKeys('some text')
 $wshell.SendKeys('{ENTER}') # presses the ENTER key
 $wshell.SendKeys('%{TAB}') # alt + TAB
