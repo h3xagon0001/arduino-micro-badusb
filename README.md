@@ -12,7 +12,7 @@ The listener machine will have to execute the following command in powershell in
 ```
 Once connected, run the following command to allow script execution and run init.ps1
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; .\init.ps1
+Set-ExecutionPolicy Bypass -Scope Process -Force; cd..; .\init.ps1
 ```
 ## Shortcuts
 This program can allow the listener to execute basic powershell commands on target machine, but also has a few extra features:
