@@ -35,7 +35,7 @@ Invoke-CimMethod -InputObject (Get-CimInstance -Namespace root/wmi -ClassName Wm
 
 **Sending Keystrokes**
 ```powershell
-$wshell = New-Object -ComObject wscript.shell; # run this first
+$wshell = New-Object -ComObject wscript.shell # run this first
 $wshell.SendKeys('some text')
 $wshell.SendKeys('{ENTER}') # presses the ENTER key
 $wshell.SendKeys('%{TAB}') # alt + TAB
