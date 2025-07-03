@@ -4,7 +4,7 @@ Arduino Micro BadUSB is a repository containing all the files and scripts necess
 ## Usage
 Once the script in `deploy.ps1` has been entered via USB connection or manual input, the program will automatically set itself up.
 
-The program will start attempting to connect to port 6969 and 6699 when it has finished setting up.
+The program will start attempting to connect to port 8888, 6969, 6699, 6996, 9669 when it has finished setting up.
 
 The listener machine will have to execute the following command in powershell in order to allow the target machine to connect:
 ```powershell
